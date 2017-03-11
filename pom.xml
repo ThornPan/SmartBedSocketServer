@@ -17,7 +17,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>shu.scie.sbss.SocketServer</mainClass>
+                            <mainClass>shu.scie.sbss.SmartBedSocketServer</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
