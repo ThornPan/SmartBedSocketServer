@@ -13,15 +13,10 @@ import java.util.List;
 
 public class SocketServer {
 	private static final int PORT = 4900;
-	List<BedSocket> bedList = new ArrayList<BedSocket>();
-	List<ControlSocket> controlList = new ArrayList<ControlSocket>();
-	ServerSocket serverSocket = null;
-	BufferedReader reader = null;
-	
-	public static void main(String[] args){
-		SocketServer socketServer = new SocketServer();
-		socketServer.start();
-	}
+	private List<BedSocket> bedList = new ArrayList<BedSocket>();
+	private List<ControlSocket> controlList = new ArrayList<ControlSocket>();
+	private ServerSocket serverSocket = null;
+	private BufferedReader reader = null;
 
 	public void start(){
 		try {
@@ -80,6 +75,7 @@ public class SocketServer {
 						if(type.equals("target")){
 							String targetID = jsonObject.getString("msg");
 							String user = jsonObject.getString("user");
+							String pwd = jsonObject.getString("pwd");
 							controlSocket.setTargetID(targetID);
 							for(BedSocket bedSocket : bedList){
 								if (bedSocket.getId().equals(targetID)){
@@ -89,6 +85,7 @@ public class SocketServer {
 									JSONObject jsonObject2Bed = new JSONObject();
 									jsonObject2Bed.put("type", "user");
 									jsonObject2Bed.put("msg", user);
+									jsonObject2Bed.put("pwd", pwd);
 									targetWriter.write(jsonObject2Bed.toString() + '\n');
 									targetWriter.flush();
 									break;
@@ -96,6 +93,11 @@ public class SocketServer {
 							}
 							if(targetBed == null){
 								printLog("not found target bed " + targetID);
+								JSONObject returnJson = new JSONObject();
+								returnJson.put("type","error");
+								returnJson.put("msg","not found target bed");
+								controllerWriter.write(returnJson.toString() + "\n");
+								controllerWriter.flush();
 							}
 						} else if(type.equals("command")){
 							String action = jsonObject.getString("msg");
