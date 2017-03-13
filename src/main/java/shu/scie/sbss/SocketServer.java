@@ -1,5 +1,6 @@
 package shu.scie.sbss;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 import shu.scie.sbss.shu.scie.sbss.model.BedSocket;
 import shu.scie.sbss.shu.scie.sbss.model.ControlSocket;
@@ -26,32 +27,41 @@ public class SocketServer {
 				socket = serverSocket.accept();
 				printLog(socket.hashCode()+" connect");
 				reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-				String type = reader.readLine();
-				printLog("type: " + type);
-				if(type.equals("bed")){
-					String id = reader.readLine();
-					BedSocket bedSocket=new BedSocket();
-					bedSocket.setId(id);
-					bedSocket.setSocket(socket);
-					if(!bedList.contains(bedSocket)){
-						bedList.add(bedSocket);
-						bedConnection(bedSocket);
-					}
+				String string = reader.readLine();
+				try {
+					JSONObject jsonObject = new JSONObject(string);
+					String type = jsonObject.getString("type");
+					if(type.equals("connect")){
+                        String device = jsonObject.getString("device");
+                        String deviceId = jsonObject.getString("deviceId");
+                        printLog("device: " + device);
+                        if(device.equals("bed")){
+                            BedSocket bedSocket=new BedSocket();
+                            bedSocket.setId(deviceId);
+                            bedSocket.setSocket(socket);
+                            if(!bedList.contains(bedSocket)){
+                                bedList.add(bedSocket);
+                                bedConnection(bedSocket);
+                            }
 
-				}else {
-					String id = reader.readLine();
-					ControlSocket controlSocket = new ControlSocket();
-					controlSocket.setId(id);
-					controlSocket.setSocket(socket);
-					if(!controlList.contains(controlSocket)){
-						controlList.add(controlSocket);
-						ControlConnection(controlSocket);
-					}
+                        }else {
+                            ControlSocket controlSocket = new ControlSocket();
+                            controlSocket.setId(deviceId);
+                            controlSocket.setSocket(socket);
+                            if(!controlList.contains(controlSocket)){
+                                controlList.add(controlSocket);
+                                ControlConnection(controlSocket);
+                            }
 
+                        }
+                    }
+				} catch (JSONException e) {
+					printLog("JSONException: " + e.getMessage());
 				}
+
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			printLog(e.getMessage());
 		}
 	}
 
@@ -68,11 +78,17 @@ public class SocketServer {
 					String command;
 					controllerReader = new BufferedReader(new InputStreamReader(controlSocket.getSocket().getInputStream()));
 					controllerWriter = new BufferedWriter(new OutputStreamWriter(controlSocket.getSocket().getOutputStream()));
+					JSONObject welcomeJson = new JSONObject();
+					welcomeJson.put("type", "welcome");
+					welcomeJson.put("msg", "welcome");
+					controllerWriter.write(welcomeJson.toString() + "\n");
+					controllerWriter.flush();
 					controlSocket.getSocket().setSoTimeout(10000);
 					while ((command = controllerReader.readLine()) != null && !controlSocket.getSocket().isClosed()){
 						JSONObject jsonObject = new JSONObject(command);
 						String type = jsonObject.getString("type");
 						if(type.equals("target")){
+							printLog("ctrl: " + controlSocket.getId() + "'s message :" + command);
 							String targetID = jsonObject.getString("msg");
 							String user = jsonObject.getString("user");
 							String pwd = jsonObject.getString("pwd");
@@ -100,6 +116,7 @@ public class SocketServer {
 								controllerWriter.flush();
 							}
 						} else if(type.equals("command")){
+							printLog("ctrl: " + controlSocket.getId() + "'s message :" + command);
 							String action = jsonObject.getString("msg");
 
 							if(targetBed != null && !targetBed.getSocket().isClosed()){
@@ -109,14 +126,17 @@ public class SocketServer {
 									jsonObject2Bed.put("msg", action);
 									targetWriter.write(jsonObject2Bed.toString() + "\n");
 									targetWriter.flush();
+									printLog("send to bed successfully");
 								} catch (Exception targetE){
 									bedList.remove(targetBed);
 									if (!targetBed.getSocket().isClosed()){
 										printLog("close socket " + targetBed.getSocket().hashCode());
 										targetBed.getSocket().close();
-										printLog("bedList's size is " + bedList.size());
+										printLog("ctrlList's size is " + bedList.size());
 									}
 								}
+							} else {
+								printLog("target bed is null");
 							}
 
 						} else {
@@ -125,6 +145,8 @@ public class SocketServer {
 					}
 				} catch (Exception e) {
 					printLog(controlSocket.getId()+" lost");
+					printLog("lost message: " + e.getMessage());
+					printLog("ctrlList's size is " + bedList.size());
 				} finally {
 					controlList.remove(controlSocket);
 					try {
@@ -149,6 +171,11 @@ public class SocketServer {
 				try {
 					bedWriter = new BufferedWriter(new OutputStreamWriter(bedSocket.getSocket().getOutputStream()));
 					bedReader = new BufferedReader(new InputStreamReader(bedSocket.getSocket().getInputStream()));
+					JSONObject welcomeJson = new JSONObject();
+					welcomeJson.put("type", "welcome");
+					welcomeJson.put("msg", "welcome");
+					bedWriter.write(welcomeJson.toString() + "\n");
+					bedWriter.flush();
 					bedSocket.getSocket().setSoTimeout(10000);
 					while (true){
 						if(!bedSocket.getSocket().isClosed() && (response = bedReader.readLine()) != null){
@@ -157,6 +184,7 @@ public class SocketServer {
 							if(type.equals("heart beat")){
 
 							} else {
+								printLog("bed: " + bedSocket.getId() + "'s message :" + response);
 								for (ControlSocket controlSocket : controlList){
 									if(controlSocket.getTargetID().equals(bedSocket.getId())){
 										try {
@@ -166,7 +194,6 @@ public class SocketServer {
 											jsonObject2Ctrl.put("msg", jsonObject.getString("msg"));
 											targetWriter.write(jsonObject2Ctrl.toString() + "\n");
 											targetWriter.flush();
-											targetWriter.close();
 										} catch (IOException e) {
 											printLog("bed " + bedSocket.getId() + " write to controller " + controlSocket.getId() + " meet error");
 											JSONObject jsonObjectReturn = new JSONObject();
@@ -177,7 +204,6 @@ public class SocketServer {
 										}
 									}
 								}
-								System.out.println(response);
 							}
 						} else {
 							printLog(bedSocket.getId() + "closed");
