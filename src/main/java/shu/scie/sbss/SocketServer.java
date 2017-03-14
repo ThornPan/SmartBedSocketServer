@@ -28,40 +28,45 @@ public class SocketServer {
 				printLog(socket.hashCode()+" connect");
 				reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 				String string = reader.readLine();
-				try {
-					JSONObject jsonObject = new JSONObject(string);
-					String type = jsonObject.getString("type");
-					if(type.equals("connect")){
-                        String device = jsonObject.getString("device");
-                        String deviceId = jsonObject.getString("deviceId");
-                        printLog("device: " + device);
-                        if(device.equals("bed")){
-                            BedSocket bedSocket=new BedSocket();
-                            bedSocket.setId(deviceId);
-                            bedSocket.setSocket(socket);
-                            if(!bedList.contains(bedSocket)){
-                                bedList.add(bedSocket);
-                                bedConnection(bedSocket);
-                            }
+				if(string != null){
+					printLog("receive: " + string);
+					try {
+						JSONObject jsonObject = new JSONObject(string);
+						String type = jsonObject.getString("type");
+						if(type.equals("connect")){
+							String device = jsonObject.getString("device");
+							String deviceId = jsonObject.getString("deviceId");
+							printLog("device: " + device);
+							if(device.equals("bed")){
+								BedSocket bedSocket=new BedSocket();
+								bedSocket.setId(deviceId);
+								bedSocket.setSocket(socket);
+								if(!bedList.contains(bedSocket)){
+									bedList.add(bedSocket);
+									bedConnection(bedSocket);
+								}
 
-                        }else {
-                            ControlSocket controlSocket = new ControlSocket();
-                            controlSocket.setId(deviceId);
-                            controlSocket.setSocket(socket);
-                            if(!controlList.contains(controlSocket)){
-                                controlList.add(controlSocket);
-                                ControlConnection(controlSocket);
-                            }
+							}else {
+								ControlSocket controlSocket = new ControlSocket();
+								controlSocket.setId(deviceId);
+								controlSocket.setSocket(socket);
+								if(!controlList.contains(controlSocket)){
+									controlList.add(controlSocket);
+									ControlConnection(controlSocket);
+								}
 
-                        }
-                    }
-				} catch (JSONException e) {
-					printLog("JSONException: " + e.getMessage());
+							}
+						}
+					} catch (JSONException e) {
+						printLog("JSONException: " + e.getMessage());
+					}
 				}
+				
 
 			}
 		} catch (Exception e) {
 			printLog(e.getMessage());
+			e.printStackTrace();
 		}
 	}
 
