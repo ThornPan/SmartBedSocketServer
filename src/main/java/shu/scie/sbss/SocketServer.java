@@ -27,8 +27,11 @@ public class SocketServer {
 				socket = serverSocket.accept();
 				printLog(socket.hashCode()+" connect");
 				reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-				String string = reader.readLine();
-				if(string != null){
+				String string;
+				while ((string = reader.readLine()) != null){
+
+
+				//if(string != null){
 					printLog("receive: " + string);
 					try {
 						JSONObject jsonObject = new JSONObject(string);
@@ -60,6 +63,7 @@ public class SocketServer {
 					} catch (JSONException e) {
 						printLog("JSONException: " + e.getMessage());
 					}
+					break;
 				}
 				
 
@@ -109,6 +113,7 @@ public class SocketServer {
 									jsonObject2Bed.put("pwd", pwd);
 									targetWriter.write(jsonObject2Bed.toString() + '\n');
 									targetWriter.flush();
+									printLog("send to target " + targetBed.getId() + " login user");
 									break;
 								}
 							}
@@ -120,6 +125,7 @@ public class SocketServer {
 								controllerWriter.write(returnJson.toString() + "\n");
 								controllerWriter.flush();
 							}
+							printLog("target over");
 						} else if(type.equals("command")){
 							printLog("ctrl: " + controlSocket.getId() + "'s message :" + command);
 							String action = jsonObject.getString("msg");
